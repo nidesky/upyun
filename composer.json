@@ -1,0 +1,13 @@
+{
+    "name": "nidesky/upyun",
+    "description": "upyun sdk",
+    "require": {
+        "guzzlehttp/guzzle": "~6.0"
+    },
+    "authors": [
+        {
+            "name": "Nidesky",
+            "email": "nidesky@gmail.com"
+        }
+    ]
+}
