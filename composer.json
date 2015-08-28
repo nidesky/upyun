@@ -9,5 +9,10 @@
             "name": "Nidesky",
             "email": "nidesky@gmail.com"
         }
-    ]
+    ],
+    "autoload": {
+        "psr-4": {
+            "Nidesky\\Upyun\\": "src/"
+        }
+    }
 }
