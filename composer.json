@@ -2,8 +2,7 @@
     "name": "nidesky/upyun",
     "description": "upyun sdk",
     "require": {
-        "guzzlehttp/guzzle": "~6.0",
-        "illuminate/support": "5.0.*"
+        "illuminate/support": "5.1"
     },
     "authors": [
         {
