@@ -66,14 +66,14 @@ class Upyun {
      * @param null $endpoint
      * @param int $timeout
      */
-    public function __construct($bucketname, $username, $password, $endpoint = NULL, $timeout = 30) {/*{{{*/
+    public function __construct($bucketname, $username, $password, $endpoint = NULL, $timeout = 30) {
         $this->_bucketname = $bucketname;
         $this->_username = $username;
         $this->_password = md5($password);
         $this->_timeout = $timeout;
 
         $this->endpoint = is_null($endpoint) ? self::ED_AUTO : $endpoint;
-    }/*}}}*/
+    }
 
     /**
      * 获取当前SDK版本号
@@ -121,7 +121,7 @@ class Upyun {
      * @throws UpYunNotFoundException
      * @throws UpYunServiceUnavailable
      */
-    public function write($path, $file, $auto_mkdir = False, $opts = NULL) {/*{{{*/
+    public function write($path, $file, $auto_mkdir = False, $opts = NULL) {
         if (is_null($opts)) $opts = array();
         if (!is_null($this->_content_md5) || !is_null($this->_file_secret)) {
             //if (!is_null($this->_content_md5)) array_push($opts, self::CONTENT_MD5 . ": {$this->_content_md5}");

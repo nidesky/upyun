@@ -2,7 +2,7 @@
     "name": "nidesky/upyun",
     "description": "upyun sdk",
     "require": {
-        "illuminate/support": "5.1"
+        "illuminate/support": "5.1.8"
     },
     "authors": [
         {

@@ -52,7 +52,7 @@ class UpyunAdapter extends AbstractAdapter
 
     public function writeStream($path, $resource, Config $config)
     {
-        // TODO: Implement writeStream() method.
+        return $this->client->write('/'.$path, $resource, true);
     }
 
     /**
@@ -78,7 +78,14 @@ class UpyunAdapter extends AbstractAdapter
 
     public function updateStream($path, $resource, Config $config)
     {
-        // TODO: Implement updateStream() method.
+        try {
+            $this->client->delete('/'.$path);
+        }
+        catch (Exception $e) {
+
+        }
+
+        return $this->write($path, $resource, $config);
     }
 
 
@@ -199,13 +206,12 @@ class UpyunAdapter extends AbstractAdapter
     {
         $stream = fopen('php://temp', 'w+');
 
-        if (! $this->client->has('/'.$path, $stream)) {
+        if (! $this->client->read('/'.$path, $stream)) {
             fclose($stream);
             return false;
         }
-        rewind($stream);
 
-        return compact('stream');
+        return true;
     }
 
     /**
