@@ -57,13 +57,14 @@ class Upyun {
      */
     private $x_request_id;
 
+
     /**
      * 初始化 UpYun 存储接口
      * @param $bucketname 空间名称
      * @param $username 操作员名称
      * @param $password 密码
-     *
-     * @return object
+     * @param null $endpoint
+     * @param int $timeout
      */
     public function __construct($bucketname, $username, $password, $endpoint = NULL, $timeout = 30) {/*{{{*/
         $this->_bucketname = $bucketname;
@@ -84,15 +85,15 @@ class Upyun {
     /**
      * 创建目录
      * @param $path 路径
-     * @param $auto_mkdir 是否自动创建父级目录，最多10层次
+     * @param boolean $auto_mkdir   是否自动创建父级目录，最多10层次
      *
      * @return void
      */
-    public function makeDir($path, $auto_mkdir = false) {/*{{{*/
+    public function createDir($path, $auto_mkdir = false) {
         $headers = array('Folder' => 'true');
         if ($auto_mkdir) $headers['Mkdir'] = 'true';
         return $this->_do_request('PUT', $path, $headers);
-    }/*}}}*/
+    }
 
     /**
      * 删除目录和文件
@@ -100,19 +101,27 @@ class Upyun {
      *
      * @return boolean
      */
-    public function delete($path) {/*{{{*/
+    public function delete($path) {
         return $this->_do_request('DELETE', $path);
-    }/*}}}*/
+    }
 
 
     /**
      * 上传文件
-     * @param string $path 存储路径
-     * @param mixed $file 需要上传的文件，可以是文件流或者文件内容
-     * @param boolean $auto_mkdir 自动创建目录
-     * @param array $opts 可选参数
+     *
+     * @param $path
+     * @param $file
+     * @param bool|False $auto_mkdir
+     * @param null $opts
+     * @return null|void
+     * @throws UpYunAuthorizationException
+     * @throws UpYunException
+     * @throws UpYunForbiddenException
+     * @throws UpYunNotAcceptableException
+     * @throws UpYunNotFoundException
+     * @throws UpYunServiceUnavailable
      */
-    public function writeFile($path, $file, $auto_mkdir = False, $opts = NULL) {/*{{{*/
+    public function write($path, $file, $auto_mkdir = False, $opts = NULL) {/*{{{*/
         if (is_null($opts)) $opts = array();
         if (!is_null($this->_content_md5) || !is_null($this->_file_secret)) {
             //if (!is_null($this->_content_md5)) array_push($opts, self::CONTENT_MD5 . ": {$this->_content_md5}");
@@ -132,27 +141,28 @@ class Upyun {
         $this->_file_infos = $this->_do_request('PUT', $path, $opts, $file);
 
         return $this->_file_infos;
-    }/*}}}*/
+    }
 
     /**
      * 下载文件
+     *
      * @param string $path 文件路径
      * @param mixed $file_handle
-     *
      * @return mixed
      */
-    public function readFile($path, $file_handle = NULL) {/*{{{*/
+    public function read($path, $file_handle = NULL)
+    {
         return $this->_do_request('GET', $path, NULL, NULL, $file_handle);
-    }/*}}}*/
+    }
 
     /**
      * 获取目录文件列表
      *
      * @param string $path 查询路径
-     *
      * @return mixed
      */
-    public function getList($path = '/') {/*{{{*/
+    public function listContents($path = '/')
+    {
         $rsp = $this->_do_request('GET', $path);
 
         $list = array();
@@ -175,17 +185,18 @@ class Upyun {
         }
 
         return $list;
-    }/*}}}*/
+    }
 
     /**
-     * @deprecated
+     * 获取目录使用情况
+     *
      * @param string $path 目录路径
      * @return mixed
      */
-    public function getFolderUsage($path = '/') {/*{{{*/
+    public function getFolderUsage($path = '/') {
         $rsp = $this->_do_request('GET', '/?usage');
         return floatval($rsp);
-    }/*}}}*/
+    }
 
     /**
      * 获取文件、目录信息
@@ -194,33 +205,46 @@ class Upyun {
      *
      * @return mixed
      */
-    public function getFileInfo($path) {/*{{{*/
+    public function has($path)
+    {
         $rsp = $this->_do_request('HEAD', $path);
-
         return $rsp;
-    }/*}}}*/
+    }
+
 
     /**
      * 连接签名方法
-     * @param $method 请求方式 {GET, POST, PUT, DELETE}
-     * return 签名字符串
+     * @param $method   请求方式 {GET, POST, PUT, DELETE}
+     * @param $uri
+     * @param $date
+     * @param $length
+     * @return string   签名字符串
      */
-    private function sign($method, $uri, $date, $length){/*{{{*/
-        //$uri = urlencode($uri);
+    private function sign($method, $uri, $date, $length)
+    {
         $sign = "{$method}&{$uri}&{$date}&{$length}&{$this->_password}";
         return 'UpYun '.$this->_username.':'.md5($sign);
-    }/*}}}*/
+    }
+
 
     /**
      * HTTP REQUEST 封装
-     * @param string $method HTTP REQUEST方法，包括PUT、POST、GET、OPTIONS、DELETE
-     * @param string $path 除Bucketname之外的请求路径，包括get参数
-     * @param array $headers 请求需要的特殊HTTP HEADERS
-     * @param array $body 需要POST发送的数据
+     * @param string $method        HTTP REQUEST方法，包括PUT、POST、GET、OPTIONS、DELETE
+     * @param string $path          除Bucketname之外的请求路径，包括get参数
+     * @param array $headers        请求需要的特殊HTTP HEADERS
+     * @param array $body           需要POST发送的数据
+     * @param null  $file_handle    文件句柄
      *
-     * @return mixed
+     * @throws UpYunAuthorizationException
+     * @throws UpYunException
+     * @throws UpYunForbiddenException
+     * @throws UpYunNotAcceptableException
+     * @throws UpYunNotFoundException
+     * @throws UpYunServiceUnavailable
      */
-    protected function _do_request($method, $path, $headers = NULL, $body= NULL, $file_handle= NULL) {/*{{{*/
+    protected function _do_request($method, $path, $headers = NULL, $body= NULL, $file_handle= NULL)
+    {
+
         $uri = "/{$this->_bucketname}{$path}";
         $ch = curl_init("http://{$this->endpoint}{$uri}");
 
@@ -304,6 +328,7 @@ class Upyun {
             }
         } else {
             $message = $this->_getErrorMessage($header_string);
+
             if (is_null($message) && $method == 'GET' && is_resource($file_handle)) {
                 $message = 'File Not Found';
             }
@@ -327,16 +352,15 @@ class Upyun {
                     throw new UpYunException($message, $http_code);
             }
         }
-    }/*}}}*/
+    }
 
     /**
      * 处理HTTP HEADERS中返回的自定义数据
      *
      * @param string $text header字符串
-     *
      * @return array
      */
-    private function _getHeadersData($text) {/*{{{*/
+    private function _getHeadersData($text) {
         $headers = explode("\r\n", $text);
         $items = array();
         foreach($headers as $header) {
@@ -347,7 +371,7 @@ class Upyun {
             }
         }
         return $items;
-    }/*}}}*/
+    }
 
     /**
      * 获取返回的错误信息
@@ -372,62 +396,14 @@ class Upyun {
     }
 
     /**
-     * 删除目录
-     * @deprecated
-     * @param $path 路径
-     *
-     * @return void
-     */
-    public function rmDir($path) {/*{{{*/
-        $this->_do_request('DELETE', $path);
-    }/*}}}*/
-
-    /**
-     * 删除文件
-     *
-     * @deprecated
-     * @param string $path 要删除的文件路径
-     *
-     * @return boolean
-     */
-    public function deleteFile($path) {/*{{{*/
-        $rsp = $this->_do_request('DELETE', $path);
-    }/*}}}*/
-
-    /**
-     * 获取目录文件列表
-     * @deprecated
-     *
-     * @param string $path 要获取列表的目录
-     *
-     * @return array
-     */
-    public function readDir($path) {/*{{{*/
-        return $this->getList($path);
-    }/*}}}*/
-
-    /**
      * 获取空间使用情况
      *
      * @deprecated 推荐直接使用 getFolderUsage('/')来获取
      * @return mixed
      */
-    public function getBucketUsage() {/*{{{*/
+    public function getBucketUsage() {
         return $this->getFolderUsage('/');
-    }/*}}}*/
-
-    /**
-     * 获取文件信息
-     *
-     * #deprecated
-     * @param $file 文件路径（包含文件名）
-     * return array('type'=> file | folder, 'size'=> file size, 'date'=> unix time) 或 null
-     */
-    //public function getFileInfo($file){/*{{{*/
-    //    $result = $this->head($file);
-    //	if(is_null($r))return null;
-    //	return array('type'=> $this->tmp_infos['x-upyun-file-type'], 'size'=> @intval($this->tmp_infos['x-upyun-file-size']), 'date'=> @intval($this->tmp_infos['x-upyun-file-date']));
-    //}/*}}}*/
+    }
 
     /**
      * 切换 API 接口的域名
@@ -436,9 +412,9 @@ class Upyun {
      * @param $domain {默然 v0.api.upyun.com 自动识别, v1.api.upyun.com 电信, v2.api.upyun.com 联通, v3.api.upyun.com 移动}
      * return null;
      */
-    public function setApiDomain($domain){/*{{{*/
+    public function setApiDomain($domain){
         $this->endpoint = $domain;
-    }/*}}}*/
+    }
 
     /**
      * 设置待上传文件的 Content-MD5 值（如又拍云服务端收到的文件MD5值与用户设置的不一致，将回报 406 Not Acceptable 错误）
@@ -447,9 +423,9 @@ class Upyun {
      * @param $str （文件 MD5 校验码）
      * return null;
      */
-    public function setContentMD5($str){/*{{{*/
+    public function setContentMD5($str){
         $this->_content_md5 = $str;
-    }/*}}}*/
+    }
 
     /**
      * 设置待上传文件的 访问密钥（注意：仅支持图片空！，设置密钥后，无法根据原文件URL直接访问，需带 URL 后面加上 （缩略图间隔标志符+密钥） 进行访问）
@@ -459,18 +435,8 @@ class Upyun {
      * @param $str （文件 MD5 校验码）
      * return null;
      */
-    public function setFileSecret($str){/*{{{*/
+    public function setFileSecret($str){
         $this->_file_secret = $str;
-    }/*}}}*/
+    }
 
-    /**
-     * @deprecated
-     * 获取上传文件后的信息（仅图片空间有返回数据）
-     * @param $key 信息字段名（x-upyun-width、x-upyun-height、x-upyun-frames、x-upyun-file-type）
-     * return value or NULL
-     */
-    public function getWritedFileInfo($key){/*{{{*/
-        if(!isset($this->_file_infos))return NULL;
-        return $this->_file_infos[$key];
-    }/*}}}*/
 }
